@@ -20,7 +20,7 @@ type SceneManager struct {
 
 func NewSceneManager() *SceneManager {
 	return &SceneManager{
-		CurrentScene: &EmptyScene{},
+		CurrentScene: &BaseScene{},
 		SceneDict:    make(map[string]Scene),
 	}
 }
@@ -45,23 +45,4 @@ func (s *SceneManager) Update() {
 
 func (s *SceneManager) Draw(screen *ui.ScaledScreen) {
 	s.CurrentScene.Draw(screen)
-}
-
-type EmptyScene struct {
-}
-
-func (e *EmptyScene) Update() {
-
-}
-
-func (e *EmptyScene) Draw(screen *ui.ScaledScreen) {
-
-}
-
-func (e *EmptyScene) OnSwitch() {
-
-}
-
-func (e *EmptyScene) SetSceneManager(sm *SceneManager) {
-
 }

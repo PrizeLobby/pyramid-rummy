@@ -9,7 +9,7 @@ import (
 )
 
 type CreditsScene struct {
-	SceneManager *SceneManager
+	BaseScene
 }
 
 func NewCreditsScene() *CreditsScene {
@@ -28,8 +28,4 @@ func (c *CreditsScene) Draw(screen *ui.ScaledScreen) {
 }
 
 func (c *CreditsScene) OnSwitch() {
-}
-
-func (c *CreditsScene) SetSceneManager(sm *SceneManager) {
-	c.SceneManager = sm
 }

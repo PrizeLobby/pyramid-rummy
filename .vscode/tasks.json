@@ -1,0 +1,25 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Populate Component",
+            "type": "shell",
+            "command": "./scripts/populatecomponent.sh ${file} ${input:className}",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+          "id": "className",
+          "type": "promptString",
+          "description": "class name to populate file with"
+        }
+      ]
+  }
+  

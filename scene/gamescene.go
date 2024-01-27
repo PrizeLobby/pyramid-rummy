@@ -17,8 +17,8 @@ const (
 )
 
 type GameScene struct {
-	SceneManager *SceneManager
-	Game         *core.Game
+	BaseScene
+	Game *core.Game
 }
 
 func NewGameScene(game *core.Game) *GameScene {

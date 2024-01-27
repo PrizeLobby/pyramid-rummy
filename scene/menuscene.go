@@ -21,10 +21,10 @@ const PLAYING_Y_CENTER = 400
 const CREDITS_Y_CENTER = 500
 
 type MenuScene struct {
+	BaseScene
 	AudioContext *audio.Context
 	Sound        []byte
 	BgmPlayer    *audio.Player
-	SceneManager *SceneManager
 }
 
 func NewMenuScene(audioContext *audio.Context) *MenuScene {
@@ -72,8 +72,4 @@ func (m *MenuScene) Draw(scaledScreen *ui.ScaledScreen) {
 	scaledScreen.DrawTextCenteredAt("Credits", 32.0, CENTER, CREDITS_Y_CENTER, color.White)
 
 	scaledScreen.DrawTextWithAlign(VERSION_STRING, 16.0, 1280-10, 720-10, color.White, etxt.Bottom, etxt.Right)
-}
-
-func (m *MenuScene) SetSceneManager(sm *SceneManager) {
-	m.SceneManager = sm
 }
