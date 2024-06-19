@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"image"
 	"io"
+	"io/fs"
 	"log"
+	"os"
 	"path"
+	"path/filepath"
+	"strings"
 
 	_ "image/png"
 
@@ -19,13 +23,42 @@ import (
 	"embed"
 )
 
-//go:embed font/* img/*.png audio/*
+//go:embed font/* img/*.png audio/* shader/*
 var assets embed.FS
 
 var fonts map[string]*sfnt.Font = make(map[string]*sfnt.Font)
 
+var shaderDict = make(map[string]*ebiten.Shader)
+
 func init() {
 	LoadFonts()
+	LoadShaders()
+}
+
+func LoadShaders() {
+	files := make([]string, 0, 10)
+	if err := fs.WalkDir(&assets, "shader", func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	for _, f := range files {
+		bytes, err := assets.ReadFile(f)
+		if err != nil {
+			log.Fatal(err)
+		}
+		shader, err := ebiten.NewShader(bytes)
+		if err != nil {
+			log.Fatal(err)
+		}
+		base := strings.TrimSuffix(filepath.Base(f), filepath.Ext(f))
+		shaderDict[base] = shader
+	}
 }
 
 func LoadFonts() {
@@ -109,4 +142,23 @@ func OggToStream(audioContext *audio.Context, fileName string) AudioStream {
 		return nil
 	}
 	return s
+}
+
+func GetShader(name string) *ebiten.Shader {
+	return shaderDict[name]
+}
+
+func ReloadShader(name string) {
+	file, err := os.ReadFile(name)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	shader, err := ebiten.NewShader(file)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	base := strings.TrimSuffix(filepath.Base(name), filepath.Ext(name))
+	shaderDict[base] = shader
 }

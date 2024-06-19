@@ -2,13 +2,16 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/prizelobby/ebitengine-template/core"
 	"github.com/prizelobby/ebitengine-template/res"
 	"github.com/prizelobby/ebitengine-template/scene"
 	"github.com/prizelobby/ebitengine-template/ui"
+	einput "github.com/quasilyte/ebitengine-input"
 	"github.com/tinne26/etxt"
 )
 
@@ -29,9 +32,14 @@ type EbitenGame struct {
 	ScaledScreen *ui.ScaledScreen
 	gameState    GameState
 	SceneManager *scene.SceneManager
+	inputSystem  einput.System
 }
 
 func (g *EbitenGame) Update() error {
+	if inpututil.IsKeyJustPressed(ebiten.KeyQ) {
+		os.Exit(0)
+	}
+
 	g.SceneManager.Update()
 	return nil
 }
@@ -50,7 +58,7 @@ func (g *EbitenGame) Layout(outsideWidth, outsideHeight int) (screenWidth, scree
 }
 
 func (g *EbitenGame) LayoutF(outsideWidth, outsideHeight float64) (screenWidth, screenHeight float64) {
-	scale := ebiten.DeviceScaleFactor()
+	scale := ebiten.Monitor().DeviceScaleFactor()
 	canvasWidth := GAME_WIDTH * scale
 	canvasHeight := GAME_HEIGHT * scale
 	return canvasWidth, canvasHeight
@@ -74,18 +82,30 @@ func main() {
 		ScaledScreen: scaledScreen,
 		gameState:    MENU,
 	}
+	g.inputSystem.Init(einput.SystemConfig{
+		DevicesEnabled: einput.AnyDevice,
+	})
+	keymap := einput.Keymap{
+		scene.PrimaryKey:   {einput.KeyEnter, einput.KeyZ},
+		scene.SecondaryKey: {einput.KeyShift, einput.KeyX},
+		scene.Left:         {einput.KeyLeft},
+		scene.Right:        {einput.KeyRight},
+		scene.Up:           {einput.KeyUp},
+		scene.Down:         {einput.KeyDown},
+	}
+
 	sm := scene.NewSceneManager()
 	menuScene := scene.NewMenuScene(audioContext)
 	creditsScene := scene.NewCreditsScene()
-	gameScene := scene.NewGameScene(game)
+	gameScene := scene.NewGameScene(game, g.inputSystem.NewHandler(0, keymap))
 	sm.AddScene("menu", menuScene)
 	sm.AddScene("credits", creditsScene)
-	sm.AddScene("playing", gameScene)
+	sm.AddScene("game", gameScene)
 	g.SceneManager = sm
-	sm.SwitchToScene("menu")
+	sm.SwitchToScene("game")
 
 	ebiten.SetWindowSize(GAME_WIDTH, GAME_HEIGHT)
-	ebiten.SetWindowTitle("EBITENGINE TEMPLATE")
+	ebiten.SetWindowTitle("Rummy Pyramid")
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}

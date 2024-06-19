@@ -46,6 +46,16 @@ func (s *ScaledScreen) DrawRect(x, y, w, h float64, color color.Color) {
 	vector.DrawFilledRect(s.Screen, xx, yy, ww, hh, color, false)
 }
 
+func (s *ScaledScreen) DrawUnfilledRect(x, y, w, h, strokeWidth float64, color color.Color) {
+	xx := float32(x * s.scaleFactor)
+	yy := float32(y * s.scaleFactor)
+	hh := float32(h * s.scaleFactor)
+	ww := float32(w * s.scaleFactor)
+	sw := float32(strokeWidth * s.scaleFactor)
+
+	vector.StrokeRect(s.Screen, xx, yy, ww, hh, sw, color, false)
+}
+
 func (s *ScaledScreen) DrawCircle(cx, cy, r float64, color color.Color) {
 	xx := float32(cx * s.scaleFactor)
 	yy := float32(cy * s.scaleFactor)
@@ -82,7 +92,7 @@ func (s *ScaledScreen) DrawText(t string, size float64, x, y int, color color.Co
 	s.Etxt.Draw(t, xx, yy)
 }
 
-func (s *ScaledScreen) DrawTextCenteredAt(t string, size float64, x, y int, color color.Color) {
+func (s *ScaledScreen) DrawTextCenteredAt(t string, size float64, x, y float64, color color.Color) {
 	xx := int(float64(x) * s.scaleFactor)
 	yy := int(float64(y) * s.scaleFactor)
 
@@ -111,5 +121,5 @@ func (s *ScaledScreen) DebugPrint(str string) {
 
 func AdjustedCursorPosition() (float64, float64) {
 	cx, cy := ebiten.CursorPosition()
-	return float64(cx) / ebiten.DeviceScaleFactor(), float64(cy) / ebiten.DeviceScaleFactor()
+	return float64(cx) / ebiten.Monitor().DeviceScaleFactor(), float64(cy) / ebiten.Monitor().DeviceScaleFactor()
 }
