@@ -14,10 +14,6 @@ import (
 	einput "github.com/quasilyte/ebitengine-input"
 )
 
-const DRAG_SOURCE_VIEW_1 = 0
-const DRAG_SOURCE_VIEW_2 = 1
-const DRAG_SOURCE_DISCARD = 2
-
 type GameUIState int
 
 const (
@@ -29,8 +25,13 @@ const (
 
 type GameScene struct {
 	BaseScene
+	UIState GameUIState
+
 	Game         *core.Game
 	SelectedCard *core.Card
+
+	Agents   [2]core.GameAgent
+	moveChan chan core.AgentEvent
 
 	Input     *einput.Handler
 	PendIndex int
@@ -38,19 +39,21 @@ type GameScene struct {
 	P1Score   int
 	P2Score   int
 
-	DragSprite    *ui.SphereSprite
-	ViewSprite1   *ui.SphereSprite
-	ViewSprite2   *ui.SphereSprite
-	DiscardSprite *ui.SphereSprite
-	P1Spheres     [10]*ui.SphereSprite
-	P2Spheres     [10]*ui.SphereSprite
+	DragSprite    *ui.CardSprite
+	DiscardSprite *ui.CardSprite
+	P1Spheres     [10]*ui.CardSprite
+	P2Spheres     [10]*ui.CardSprite
 	MapSmall      *ebiten.Image
 	HexMap        *ebiten.Image
 	BaseTile      *ebiten.Image
 	HoverTile     *ebiten.Image
 	OutlineTile   *ebiten.Image
+	Shadow        *ebiten.Image
 
 	Stroke *ui.Stroke
+
+	ActiveAnimation ui.Anim
+	AnimationQueue  []ui.Anim
 
 	HelpText string
 }
@@ -65,23 +68,20 @@ const (
 )
 
 func NewGameScene(game *core.Game, inputHandler *einput.Handler) *GameScene {
-	/*
-		p1s := [10]*ui.SphereSprite{}
-		for i := range 10 {
-			p1s[i] = ui.NewSphereSprite(&core.Card{Value: i, Color: 0}, P2XLocs[i], P2YLocs[i])
-		}*/
-
 	return &GameScene{
-		Game:        game,
-		Input:       inputHandler,
-		HexMap:      res.GetImage("hexmap"),
-		BaseTile:    res.GetImage("hextile3"),
-		HoverTile:   res.GetImage("hexoutlinegreen"),
-		OutlineTile: res.GetImage("hexoutlinebroken"),
-		MapSmall:    res.GetImage("circlemapsmall"),
-		//P2Spheres: p1s,
-		PendIndex: -1,
-		HelpText:  "Click the deck to choose between 2 cards to add to your pyramid.",
+		Game:          game,
+		Input:         inputHandler,
+		DiscardSprite: ui.NewCardSprite(game.TopDiscard(), DISCARD_X, DISCARD_Y),
+		HexMap:        res.GetImage("hexmap"),
+		BaseTile:      res.GetImage("basetile"),
+		HoverTile:     res.GetImage("hexoutlinegreen"),
+		OutlineTile:   res.GetImage("hexoutlinebroken"),
+		MapSmall:      res.GetImage("circlemapsmall"),
+		Shadow:        res.GetImage("shadow"),
+		moveChan:      make(chan core.AgentEvent, 1),
+		PendIndex:     -1,
+		HelpText:      "Drag the open card to your pyramid or click the deck to reveal a new card.",
+		Agents:        [2]core.GameAgent{nil, core.NewAgent(1)},
 	}
 }
 
@@ -100,38 +100,27 @@ const DISCARD_Y = 260
 const P1StartX float64 = 800
 const P1StartY float64 = 360
 const P2StartX float64 = 30
-const P2StartY float64 = 200
-
-const P2YDiff = -350
-const PyramidLength float64 = 93
-const SQRT_3 float64 = 1.732
+const P2StartY float64 = 360
 
 var P1XLocs [10]float64 = [10]float64{
-	//P1StartX, P1StartX - PyramidLength/2, P1StartX + PyramidLength/2, P1StartX - PyramidLength, P1StartX, P1StartX + PyramidLength,
-	//P1StartX, P1StartX - PyramidLength/2, P1StartX + PyramidLength/2, P1StartX,
 	P1StartX + ui.TILE_X_OFFSET, P1StartX + ui.TILE_X_OFFSET/2, P1StartX + ui.TILE_X_OFFSET*1.5, P1StartX, P1StartX + ui.TILE_X_OFFSET, P1StartX + 2*ui.TILE_X_OFFSET,
 	P1StartX + ui.TILE_X_OFFSET, P1StartX + ui.TILE_X_OFFSET/2, P1StartX + ui.TILE_X_OFFSET*1.5, P1StartX + ui.TILE_X_OFFSET,
 }
 var P1YLocs [10]float64 = [10]float64{
-	//P1StartY, P1StartY + PyramidLength*SQRT_3/2, P1StartY + PyramidLength*SQRT_3/2, P1StartY + PyramidLength*SQRT_3, P1StartY + PyramidLength*SQRT_3, P1StartY + PyramidLength*SQRT_3,
-	//P1StartY + PyramidLength*SQRT_3/3, P1StartY + PyramidLength*SQRT_3/2 + PyramidLength*SQRT_3/3, P1StartY + PyramidLength*SQRT_3/2 + PyramidLength*SQRT_3/3,
-	//P1StartY + PyramidLength*4*SQRT_3/6,
 	P1StartY, P1StartY + ui.TILE_Y_OFFSET, P1StartY + ui.TILE_Y_OFFSET, P1StartY + 2*ui.TILE_Y_OFFSET, P1StartY + 2*ui.TILE_Y_OFFSET, P1StartY + 2*ui.TILE_Y_OFFSET,
 	P1StartY + math.Floor(ui.TILE_Y_OFFSET/2), P1StartY + math.Floor(ui.TILE_Y_OFFSET*1.5), P1StartY + math.Floor(ui.TILE_Y_OFFSET*1.5),
-	P1StartY + ui.TILE_Y_OFFSET,
+	P1StartY + ui.TILE_Y_OFFSET - 1,
 }
 
 var P2XLocs [10]float64 = [10]float64{
-	P2StartX + ui.TILE_X_OFFSET, P2StartX + ui.TILE_X_OFFSET*1.5, P2StartX + ui.TILE_X_OFFSET/2, P2StartX + 2*ui.TILE_X_OFFSET, P2StartX + ui.TILE_X_OFFSET, P2StartX,
-	P2StartX + ui.TILE_X_OFFSET, P2StartX + ui.TILE_X_OFFSET*1.5, P2StartX + ui.TILE_X_OFFSET/2, P2StartX + ui.TILE_X_OFFSET,
+	P2StartX + ui.TILE_X_OFFSET, P2StartX + ui.TILE_X_OFFSET/2, P2StartX + ui.TILE_X_OFFSET*1.5, P2StartX, P2StartX + ui.TILE_X_OFFSET, P2StartX + 2*ui.TILE_X_OFFSET,
+	P2StartX + ui.TILE_X_OFFSET, P2StartX + ui.TILE_X_OFFSET/2, P2StartX + ui.TILE_X_OFFSET*1.5, P2StartX + ui.TILE_X_OFFSET,
 }
 var P2YLocs [10]float64 = [10]float64{
-	P2StartY + 2*ui.TILE_Y_OFFSET, P2StartY + ui.TILE_Y_OFFSET, P2StartY + ui.TILE_Y_OFFSET, P2StartY, P2StartY, P2StartY,
-	P2StartY + ui.TILE_Y_OFFSET + ui.TILE_TIP_HEIGHT, P2StartY + ui.TILE_TIP_HEIGHT, P2StartY + ui.TILE_TIP_HEIGHT,
-	P2StartY + ui.TILE_TIP_HEIGHT + ui.TILE_TIP_HEIGHT,
+	P1StartY, P1StartY + ui.TILE_Y_OFFSET, P1StartY + ui.TILE_Y_OFFSET, P1StartY + 2*ui.TILE_Y_OFFSET, P1StartY + 2*ui.TILE_Y_OFFSET, P1StartY + 2*ui.TILE_Y_OFFSET,
+	P1StartY + math.Floor(ui.TILE_Y_OFFSET/2), P1StartY + math.Floor(ui.TILE_Y_OFFSET*1.5), P1StartY + math.Floor(ui.TILE_Y_OFFSET*1.5),
+	P1StartY + ui.TILE_Y_OFFSET - 1,
 }
-
-var P2DrawOrder [10]int = [10]int{3, 4, 5, 1, 2, 0, 7, 8, 6, 9}
 
 func (g *GameScene) Draw(screen *ui.ScaledScreen) {
 	screen.Screen.Fill(color.RGBA{0x5b, 0xa1, 0x2d, 0xff})
@@ -140,28 +129,52 @@ func (g *GameScene) Draw(screen *ui.ScaledScreen) {
 
 	//screen.DrawText(strconv.Itoa(g.PendIndex), 24, 10, 10, color.White)
 	screen.DrawTextCenteredAt(g.HelpText, 24, 640, 20, color.White)
-	screen.DrawTextCenteredAt("Player "+strconv.Itoa(g.Game.Turn%2+1)+"'s turn", 24, 640, 50, color.White)
+	if g.UIState != GAME_OVER {
+		screen.DrawTextCenteredAt("Player "+strconv.Itoa(g.Game.Turn%2+1)+"'s turn", 24, 640, 50, color.White)
+	} else {
+		if g.Game.State == core.P1_WIN {
+			screen.DrawTextCenteredAt("P1 Wins", 24, 640, 50, color.White)
+		} else if g.Game.State == core.P2_WIN {
+			screen.DrawTextCenteredAt("P2 Wins", 24, 640, 50, color.White)
+		} else if g.Game.State == core.DRAW {
+			screen.DrawTextCenteredAt("Draw", 24, 640, 50, color.White)
+		}
+	}
 
 	deckOpts := &ebiten.DrawImageOptions{}
 	deckOpts.GeoM.Translate(DECK_BUTTON_X, DECK_BUTTON_Y)
 	screen.DrawImage(g.BaseTile, deckOpts)
-	screen.DrawTextCenteredAt(strconv.Itoa(len(g.Game.Deck))+"\nCards Left", 20, DECK_BUTTON_X+ui.TILE_X_OFFSET/2, DECK_BUTTON_Y+60, color.Black)
+	deckShadowOpts := &ebiten.DrawImageOptions{}
+	deckShadowOpts.GeoM.Translate(DECK_BUTTON_X, DECK_BUTTON_Y)
+	screen.DrawImage(g.Shadow, deckShadowOpts)
+	//screen.DrawTextCenteredAt(strconv.Itoa(len(g.Game.Deck))+"\nCards Left", 20, DECK_BUTTON_X+ui.TILE_X_OFFSET/2, DECK_BUTTON_Y+60, color.Black)
+
+	dOpts := &ebiten.DrawImageOptions{}
+	dOpts.GeoM.Translate(DISCARD_X, DISCARD_Y+ui.TILE_HEIGHT)
+	screen.DrawImage(g.OutlineTile, dOpts)
+
+	if len(g.Game.Discards) < 2 {
+		screen.DrawTextCenteredAt("No prior\ncards in stack", 18, DISCARD_X+ui.TILE_X_OFFSET/2, DISCARD_Y+70, color.White)
+	} else {
+		screen.DrawTextCenteredAt("Prior card:\n"+g.Game.Discards[len(g.Game.Discards)-2].String(), 18, DISCARD_X+ui.TILE_X_OFFSET/2, DISCARD_Y+70, color.White)
+	}
+	if g.DiscardSprite != nil {
+		g.DiscardSprite.Draw(screen)
+	}
 
 	pOpts := &ebiten.DrawImageOptions{}
-	//pOpts.GeoM.Scale(1, 1)
 	pOpts.GeoM.Translate(P1StartX, P1StartY)
 	screen.DrawImage(g.HexMap, pOpts)
-	screen.DrawTextCenteredAt("Score: "+strconv.Itoa(g.P1Score), 36, P1StartX+ui.TILE_X_OFFSET*1.5, P1StartY-30, color.White)
+	screen.DrawTextCenteredAt("Score: "+strconv.Itoa(g.P1Score), 36, P1StartX+ui.TILE_X_OFFSET*1.5, P1StartY-40, color.White)
 
 	pOpts2 := &ebiten.DrawImageOptions{}
-	pOpts2.GeoM.Scale(1, -1)
-	pOpts2.GeoM.Translate(0, 316)
-	pOpts2.GeoM.Translate(P2StartX, P2StartY)
+	pOpts2.GeoM.Translate(P2StartX, P1StartY)
 	screen.DrawImage(g.HexMap, pOpts2)
-	screen.DrawTextCenteredAt("Score: "+strconv.Itoa(g.P2Score), 36, P2StartX+ui.TILE_X_OFFSET*1.5, P2StartY-30, color.White)
+	screen.DrawTextCenteredAt("Score: "+strconv.Itoa(g.P2Score), 36, P2StartX+ui.TILE_X_OFFSET*1.5, P2StartY-40, color.White)
 
 	screen.DrawTextCenteredAt("Discard Stack:", 30, DISCARD_X+ui.TILE_X_OFFSET/2, DISCARD_Y-50, color.White)
 	screen.DrawTextCenteredAt("Deck:", 30, DECK_BUTTON_X+ui.TILE_X_OFFSET/2, DECK_BUTTON_Y-50, color.White)
+
 	/*
 		deckStartX := 400.0 - 118
 		deckStartY := 100.0
@@ -211,9 +224,7 @@ func (g *GameScene) Draw(screen *ui.ScaledScreen) {
 			}
 		}
 	}
-	for i := range 10 {
-		ii := P2DrawOrder[i]
-		s := g.P2Spheres[ii]
+	for i, s := range g.P2Spheres {
 		if s != nil {
 			s.Draw(screen)
 		}
@@ -250,17 +261,6 @@ func (g *GameScene) Draw(screen *ui.ScaledScreen) {
 		screen.DrawImage(g.HoverTile, opt)
 	}
 
-	if g.DiscardSprite != nil {
-		g.DiscardSprite.Draw(screen)
-	} else {
-		screen.DrawTextCenteredAt("No cards in\ndiscard pile", 18, DISCARD_X+ui.TILE_X_OFFSET/2, DISCARD_Y+30, color.White)
-	}
-	if g.ViewSprite1 != nil {
-		g.ViewSprite1.Draw(screen)
-	}
-	if g.ViewSprite2 != nil {
-		g.ViewSprite2.Draw(screen)
-	}
 	if g.DragSprite != nil {
 		g.DragSprite.Draw(screen)
 	}
@@ -353,127 +353,209 @@ func (g *GameScene) Update() {
 			}
 		}*/
 
-	g.PrevPend = g.PendIndex
+	select {
+	case m := <-g.moveChan:
+		if m.EventType == core.DRAW_CARDS {
+			c := g.Game.DrawCard()
+			g.Agents[g.Game.Turn%2].RevealCard(c)
 
-	cx, cy := ui.AdjustedCursorPosition()
-	InHex := false
-	if g.DragSprite != nil {
-		for i := range 10 {
-			pyramid, x, y := g.PyramidXYForTurn(i)
-			if XYinHexCell(cx, cy, x, y, ui.SPHERE_SIZE_X, ui.SPHERE_SIZE_Y-ui.TILE_HEIGHT, ui.TILE_TIP_HEIGHT) && pyramid.CanPlace(i) {
-				g.PendIndex = i
-				if g.PendIndex != g.PrevPend {
-					if g.Game.Turn%2 == 0 {
-						g.P1Score = pyramid.TentativeScoreWithCard(g.DragSprite.Card, g.PendIndex)
-					} else {
-						g.P2Score = pyramid.TentativeScoreWithCard(g.DragSprite.Card, g.PendIndex)
-					}
+			// TODO: this needs to be done after the 30 tick wait
+			g.DiscardSprite = ui.NewCardSprite(c, DECK_BUTTON_X, DECK_BUTTON_Y)
+			g.AnimationQueue = append(g.AnimationQueue, ui.NewBlockingAnim(30), ui.NewLinearPathAnimator(g.DiscardSprite, 35,
+				ui.Location{X: DECK_BUTTON_X, Y: DECK_BUTTON_Y},
+				ui.Location{X: DISCARD_X, Y: DISCARD_Y}, ui.EaseOutCubic, func() {
+					go func() { g.moveChan <- g.Agents[g.Game.Turn%2].GenerateMove() }()
+				}))
+
+		} else if m.EventType == core.PLAY_CARD {
+			g.Game.PlayCard(m.Target)
+			complete := func() {
+				nextCard := g.Game.TopDiscard()
+				if nextCard != nil {
+					g.DiscardSprite = ui.NewCardSprite(nextCard, DISCARD_X, DISCARD_Y)
 				}
-
-				InHex = true
-				break
-			}
-		}
-	}
-	if !InHex {
-		g.PendIndex = -1
-		if g.PrevPend != -1 {
-			g.P1Score = g.Game.Pyramid1.Score()
-			g.P2Score = g.Game.Pyramid2.Score()
-		}
-	}
-
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		if g.ViewSprite1 != nil && g.ViewSprite1.In(cx, cy) {
-			g.Stroke = ui.NewStroke(cx, cy, g.ViewSprite1, DRAG_SOURCE_VIEW_1)
-			g.DragSprite = g.ViewSprite1
-			g.DragSprite.X = cx - ui.SPHERE_SIZE_X/2
-			g.DragSprite.Y = cy - (ui.SPHERE_SIZE_Y-ui.TILE_HEIGHT-6)/2
-		} else if g.ViewSprite2 != nil && g.ViewSprite2.In(cx, cy) {
-			g.Stroke = ui.NewStroke(cx, cy, g.ViewSprite2, DRAG_SOURCE_VIEW_2)
-			g.DragSprite = g.ViewSprite2
-			g.DragSprite.X = cx - ui.SPHERE_SIZE_X/2
-			g.DragSprite.Y = cy - (ui.SPHERE_SIZE_Y-ui.TILE_HEIGHT-6)/2
-		} else if g.DiscardSprite != nil && g.DiscardSprite.In(cx, cy) {
-			if g.ViewSprite1 == nil && g.ViewSprite2 == nil {
-				g.Stroke = ui.NewStroke(cx, cy, g.DiscardSprite, DRAG_SOURCE_DISCARD)
-				g.DragSprite = g.DiscardSprite
-				g.DragSprite.X = cx - ui.SPHERE_SIZE_X/2
-				g.DragSprite.Y = cy - (ui.SPHERE_SIZE_Y-ui.TILE_HEIGHT-6)/2
-			} else {
-				// TODO: this should hide the discard card or apply some other effect to show that it is unavailable
-				g.HelpText = "You can not play the discard card after viewing from the deck this turn."
-			}
-
-		} else if util.XYinRect(cx, cy, DECK_BUTTON_X, DECK_BUTTON_Y, DECK_BUTTON_W, DECK_BUTTON_H) {
-			if g.ViewSprite1 == nil && g.ViewSprite2 == nil {
-				g.HelpText = "Drag one of the two cards to your pyramid."
-				g.Game.DrawCards()
-				g.ViewSprite1 = ui.NewSphereSprite(g.Game.ViewCards[0], VIEW_ONE_X, VIEW_ONE_Y)
-				g.ViewSprite2 = ui.NewSphereSprite(g.Game.ViewCards[1], VIEW_TWO_X, VIEW_TWO_Y)
-			}
-		}
-	}
-	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
-		if g.Stroke != nil {
-			g.Stroke.Release()
-			pyramid, x, y := g.PyramidXYForTurn(g.PendIndex)
-			if g.PendIndex != -1 && pyramid.CanPlace(g.PendIndex) {
-				if g.Stroke.DragSourceIndex == DRAG_SOURCE_VIEW_1 {
-					g.Game.PlayFromView(0, g.PendIndex)
-					g.DiscardSprite = g.ViewSprite2
-				} else if g.Stroke.DragSourceIndex == DRAG_SOURCE_VIEW_2 {
-					g.Game.PlayFromView(1, g.PendIndex)
-					g.DiscardSprite = g.ViewSprite1
-				} else if g.Stroke.DragSourceIndex == DRAG_SOURCE_DISCARD {
-					g.Game.PlayFromDiscard(g.PendIndex)
-					if len(g.Game.Discards) > 0 {
-						g.DiscardSprite = ui.NewSphereSprite(g.Game.Discards[len(g.Game.Discards)-1], DISCARD_X, DISCARD_Y)
-					} else {
-						g.DiscardSprite = nil
-					}
-				}
-
-				g.DragSprite.X = x
-				g.DragSprite.Y = y - ui.TILE_HEIGHT
-				if g.DiscardSprite != nil {
-					g.DiscardSprite.X = DISCARD_X
-					g.DiscardSprite.Y = DISCARD_Y
-					g.HelpText = "Click the deck to choose between the next 2 cards or drag the discarded card to your pyramid."
-				} else {
-					g.HelpText = "Click the deck to choose between 2 cards to add to your pyramid."
-				}
-				// this conditional is flipped because we increment the turn counter during play card
-				if g.Game.Turn%2 == 0 {
-					g.P2Spheres[g.PendIndex] = g.DragSprite
-				} else {
-					g.P1Spheres[g.PendIndex] = g.DragSprite
-				}
-				g.ViewSprite1 = nil
-				g.ViewSprite2 = nil
 				g.P1Score = g.Game.Pyramid1.Score()
 				g.P2Score = g.Game.Pyramid2.Score()
-			} else {
-				if g.Stroke.DragSourceIndex == DRAG_SOURCE_VIEW_1 {
-					g.DragSprite.X = VIEW_ONE_X
-					g.DragSprite.Y = VIEW_ONE_Y
-				} else if g.Stroke.DragSourceIndex == DRAG_SOURCE_VIEW_2 {
-					g.DragSprite.X = VIEW_TWO_X
-					g.DragSprite.Y = VIEW_TWO_Y
-				} else if g.Stroke.DragSourceIndex == DRAG_SOURCE_DISCARD {
-					g.DragSprite.X = DISCARD_X
-					g.DragSprite.Y = DISCARD_Y
+				if g.Game.State == core.IN_PROGRESS {
+					if g.Agents[g.Game.Turn%2] == nil {
+						g.UIState = WAITING_FOR_PLAYER_MOVE
+					} else {
+						go func() { g.moveChan <- g.Agents[g.Game.Turn%2].GenerateMove() }()
+					}
+				} else {
+					g.UIState = GAME_OVER
 				}
 			}
-			g.SelectedCard = nil
-			g.DragSprite = nil
+
+			if g.Game.Turn%2 == 0 {
+				g.P2Spheres[m.Target] = g.DiscardSprite // ui.NewCardSprite(card, P2XLocs[m.Target], P2YLocs[m.Target])
+				g.DiscardSprite = nil
+				g.AnimationQueue = append(g.AnimationQueue, ui.NewBlockingAnim(30), ui.NewLinearPathAnimator(g.P2Spheres[m.Target], 50,
+					ui.Location{X: DISCARD_X, Y: DISCARD_Y},
+					ui.Location{X: P2XLocs[m.Target], Y: P2YLocs[m.Target] - ui.TILE_HEIGHT}, ui.EaseOutCubic, complete))
+			} else {
+				g.P1Spheres[m.Target] = g.DiscardSprite // ui.NewCardSprite(card, P2XLocs[m.Target], P2YLocs[m.Target])
+				g.DiscardSprite = nil
+				g.AnimationQueue = append(g.AnimationQueue, ui.NewBlockingAnim(30), ui.NewLinearPathAnimator(g.P1Spheres[m.Target], 50,
+					ui.Location{X: DISCARD_X, Y: DISCARD_Y},
+					ui.Location{X: P1XLocs[m.Target], Y: P1YLocs[m.Target] - ui.TILE_HEIGHT}, ui.EaseOutCubic, complete))
+			}
+		}
+	default:
+	}
+
+	if g.ActiveAnimation != nil {
+		if g.ActiveAnimation.IsFinished() {
+			g.ActiveAnimation = nil
+			return
+		} else {
+			g.ActiveAnimation.Update()
+		}
+	} else {
+		if len(g.AnimationQueue) > 0 {
+			g.ActiveAnimation = g.AnimationQueue[0]
+			g.AnimationQueue = g.AnimationQueue[1:]
+		} else {
+			//b.isAnimating = false
+			//b.CompleteMove(b.animatingMove)
 		}
 	}
 
-	if g.Stroke != nil {
-		g.Stroke.Update(cx, cy)
-		if g.Stroke.Released {
-			g.Stroke = nil
+	if g.UIState == WAITING_FOR_PLAYER_MOVE {
+		g.PrevPend = g.PendIndex
+
+		cx, cy := ui.AdjustedCursorPosition()
+		InHex := false
+		if g.DragSprite != nil {
+			for i := range 10 {
+				pyramid, x, y := g.PyramidXYForTurn(i)
+				if XYinHexCell(cx, cy, x, y, ui.SPHERE_SIZE_X, ui.SPHERE_SIZE_Y-ui.TILE_HEIGHT, ui.TILE_TIP_HEIGHT) && pyramid.CanPlace(i) {
+					g.PendIndex = i
+					if g.PendIndex != g.PrevPend {
+						if g.Game.Turn%2 == 0 {
+							g.P1Score = pyramid.TentativeScoreWithCard(g.DragSprite.Card, g.PendIndex)
+						} else {
+							g.P2Score = pyramid.TentativeScoreWithCard(g.DragSprite.Card, g.PendIndex)
+						}
+					}
+
+					InHex = true
+					break
+				}
+			}
+		}
+		if !InHex {
+			g.PendIndex = -1
+			if g.PrevPend != -1 {
+				g.P1Score = g.Game.Pyramid1.Score()
+				g.P2Score = g.Game.Pyramid2.Score()
+			}
+		}
+		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+			if g.DiscardSprite != nil && g.DiscardSprite.In(cx, cy) {
+				g.Stroke = ui.NewStroke(cx, cy, g.DiscardSprite, 0)
+				g.DragSprite = g.DiscardSprite
+				g.DragSprite.ShadowType = 1
+				g.DragSprite.X = cx - ui.SPHERE_SIZE_X/2
+				g.DragSprite.Y = cy - (ui.SPHERE_SIZE_Y-ui.TILE_HEIGHT-6)/2
+			} else if util.XYinRect(cx, cy, DECK_BUTTON_X, DECK_BUTTON_Y, DECK_BUTTON_W, DECK_BUTTON_H) {
+				if g.Game.DrawsLeft == 0 {
+					g.HelpText = "You have 0 draws remaining this turn."
+				} else {
+					c := g.Game.DrawCard()
+					g.DiscardSprite = ui.NewCardSprite(c, DECK_BUTTON_X, DECK_BUTTON_Y)
+					g.AnimationQueue = append(g.AnimationQueue, ui.NewLinearPathAnimator(g.DiscardSprite, 25,
+						ui.Location{X: DECK_BUTTON_X, Y: DECK_BUTTON_Y},
+						ui.Location{X: DISCARD_X, Y: DISCARD_Y}, ui.EaseOutCubic, nil))
+				}
+			}
+		}
+		if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+			if g.Stroke != nil {
+				g.Stroke.Release()
+				pyramid, x, y := g.PyramidXYForTurn(g.PendIndex)
+				if g.PendIndex != -1 && pyramid.CanPlace(g.PendIndex) {
+					g.Game.PlayCard(g.PendIndex)
+					if len(g.Game.Discards) > 0 {
+						g.DiscardSprite = ui.NewCardSprite(g.Game.TopDiscard(), DISCARD_X, DISCARD_Y)
+						g.DiscardSprite.X = DISCARD_X
+						g.DiscardSprite.Y = DISCARD_Y
+						g.HelpText = "Drag the open card to your pyramid or click the deck to reveal a new card."
+					} else {
+						g.DiscardSprite = nil
+						g.HelpText = "Click the deck to choose reveal a card."
+					}
+					g.DragSprite.X = x
+					g.DragSprite.Y = y - ui.TILE_HEIGHT
+					if g.PendIndex < 5 {
+						g.DragSprite.ShadowType = 0
+					} else {
+						g.DragSprite.ShadowType = 2
+					}
+					// this conditional is flipped because we increment the turn counter during play card
+					var sprites [10]*ui.CardSprite
+					if g.Game.Turn%2 == 0 {
+						g.P2Spheres[g.PendIndex] = g.DragSprite
+						sprites = g.P2Spheres
+					} else {
+						g.P1Spheres[g.PendIndex] = g.DragSprite
+						sprites = g.P1Spheres
+					}
+					if g.PendIndex == 6 {
+						sprites[1].DisplayType = ui.DISPLAY_TYPE_LEFT
+						sprites[2].DisplayType = ui.DISPLAY_TYPE_RIGHT
+					} else if g.PendIndex == 7 {
+						if sprites[6] != nil {
+							sprites[1].DisplayType = ui.DISPLAY_TYPE_LEFT
+						}
+						sprites[3].DisplayType = ui.DISPLAY_TYPE_LEFT
+						if sprites[8] != nil {
+							sprites[4].DisplayType = ui.DISPLAY_TYPE_BOTTOM
+						} else {
+							sprites[4].DisplayType = ui.DISPLAY_TYPE_RIGHT
+						}
+					} else if g.PendIndex == 8 {
+						if sprites[7] != nil {
+							sprites[2].DisplayType = ui.DISPLAY_TYPE_RIGHT
+						}
+						if sprites[7] != nil {
+							sprites[4].DisplayType = ui.DISPLAY_TYPE_BOTTOM
+						} else {
+							sprites[4].DisplayType = ui.DISPLAY_TYPE_LEFT
+						}
+						sprites[5].DisplayType = ui.DISPLAY_TYPE_RIGHT
+					} else if g.PendIndex == 9 {
+						sprites[7].DisplayType = ui.DISPLAY_TYPE_LEFT
+						sprites[8].DisplayType = ui.DISPLAY_TYPE_RIGHT
+					}
+
+					g.P1Score = g.Game.Pyramid1.Score()
+					g.P2Score = g.Game.Pyramid2.Score()
+					if g.Game.State == core.IN_PROGRESS {
+						if agent := g.Agents[g.Game.Turn%2]; agent != nil {
+							g.UIState = WAITING_FOR_OPP_MOVE
+							go func() { g.moveChan <- agent.GenerateMove() }()
+						}
+					} else {
+						g.UIState = GAME_OVER
+					}
+				} else {
+					g.DragSprite.ShadowType = 0
+					g.AnimationQueue = append(g.AnimationQueue, ui.NewLinearPathAnimator(g.DragSprite, 15,
+						ui.Location{X: g.DragSprite.X, Y: g.DragSprite.Y},
+						ui.Location{X: DISCARD_X, Y: DISCARD_Y}, ui.EaseOutCubic, nil))
+				}
+				g.SelectedCard = nil
+				g.DragSprite = nil
+				g.PendIndex = -1
+			}
+		}
+
+		if g.Stroke != nil {
+			g.Stroke.Update(cx, cy)
+			if g.Stroke.Released {
+				g.Stroke = nil
+			}
 		}
 	}
 }
