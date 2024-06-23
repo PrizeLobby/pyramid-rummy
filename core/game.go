@@ -34,6 +34,10 @@ type Game struct {
 	DrawsLeft int
 }
 
+func (g *Game) CurrentPlayer() int {
+	return g.Turn % 2
+}
+
 func (g *Game) TopDiscard() *Card {
 	if l := len(g.Discards); l != 0 {
 		return g.Discards[l-1]
@@ -180,8 +184,8 @@ func NewGame() *Game {
 	r.Shuffle(len(deck), func(i, j int) { deck[i], deck[j] = deck[j], deck[i] })
 
 	discards := make([]*Card, 0, 40)
-	discards = append(discards, deck[0])
-	deck = deck[1:]
+	//discards = append(discards, deck[0])
+	//deck = deck[1:]
 
 	return &Game{
 		Rand:      r,
@@ -190,6 +194,6 @@ func NewGame() *Game {
 		Pyramid1:  &Pyramid{Cards: [10]*Card{}},
 		Pyramid2:  &Pyramid{Cards: [10]*Card{}},
 		Turn:      0,
-		DrawsLeft: 1,
+		DrawsLeft: 2,
 	}
 }

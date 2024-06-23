@@ -85,24 +85,16 @@ func main() {
 	g.inputSystem.Init(einput.SystemConfig{
 		DevicesEnabled: einput.AnyDevice,
 	})
-	keymap := einput.Keymap{
-		scene.PrimaryKey:   {einput.KeyEnter, einput.KeyZ},
-		scene.SecondaryKey: {einput.KeyShift, einput.KeyX},
-		scene.Left:         {einput.KeyLeft},
-		scene.Right:        {einput.KeyRight},
-		scene.Up:           {einput.KeyUp},
-		scene.Down:         {einput.KeyDown},
-	}
 
 	sm := scene.NewSceneManager()
 	menuScene := scene.NewMenuScene(audioContext)
 	creditsScene := scene.NewCreditsScene()
-	gameScene := scene.NewGameScene(game, g.inputSystem.NewHandler(0, keymap))
+	gameScene := scene.NewGameScene(game)
 	sm.AddScene("menu", menuScene)
 	sm.AddScene("credits", creditsScene)
 	sm.AddScene("game", gameScene)
 	g.SceneManager = sm
-	sm.SwitchToScene("game")
+	sm.SwitchToScene("menu")
 
 	ebiten.SetWindowSize(GAME_WIDTH, GAME_HEIGHT)
 	ebiten.SetWindowTitle("Rummy Pyramid")
