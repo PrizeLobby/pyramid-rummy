@@ -1,6 +1,8 @@
 Pyramid Rummy
 
-Play cards to build the highest scoring pyramid. You can choose to play the revealed card on your pyramid or draw a new card. You may draw up to 2 cards each turn. 
+Pyramid rummy is played with a 40 card deck. The cards are split into two suits, purple leaves and yellow nibs. Each suit contains 2 copies of the values 1 to 10.
+
+Play cards to build the highest scoring pyramid. You can choose to play the revealed card on your pyramid or draw a new card. You may draw up to 2 cards each turn, at which you will be forced to play the most recent revealed card.
 
 Scoring:
 Scoring is based on the six edges of the pyramid. Each edge consists of three cards. If all three cards are the same color, the score for that edge is 0. Otherwise, the score is equal to the value of the card that is a different color than the other two. Your total score is the sum of the scores of the six edges.

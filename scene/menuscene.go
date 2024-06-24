@@ -19,7 +19,7 @@ const CENTER = 640
 const TITLE_Y_CENTER = 180
 const CHOICE_HEADER_Y = 280
 const PLAYING_Y_CENTER = 450
-const CREDITS_Y_CENTER = 550
+const RULES_Y_CENTER = 550
 
 type MenuScene struct {
 	BaseScene
@@ -27,8 +27,11 @@ type MenuScene struct {
 	Sound        []byte
 	BgmPlayer    *audio.Player
 
+	P0Choice int
 	P1Choice int
-	P2Choice int
+
+	Rules        *ui.RulesComponent
+	ShowingRules bool
 }
 
 func NewMenuScene(audioContext *audio.Context) *MenuScene {
@@ -45,7 +48,9 @@ func NewMenuScene(audioContext *audio.Context) *MenuScene {
 		AudioContext: audioContext,
 		Sound:        b,
 		BgmPlayer:    player,
-		P2Choice:     1,
+		P1Choice:     1,
+
+		Rules: ui.NewRulesComponent(),
 	}
 }
 
@@ -55,22 +60,34 @@ func (m *MenuScene) OnSwitch() {
 }
 
 func (m *MenuScene) Update() {
+	if m.ShowingRules {
+		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+			m.ShowingRules = false
+		}
+		return
+	}
+
 	cx, cy := ui.AdjustedCursorPosition()
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+
 		if math.Abs(cx-CENTER) < 100 && math.Abs(cy-PLAYING_Y_CENTER) < 50 {
+			gs := NewGameScene(m.P0Choice, m.P1Choice)
+			m.SceneManager.AddScene("game", gs)
 			m.SceneManager.SwitchToScene("game")
 			player := m.AudioContext.NewPlayerFromBytes(m.Sound)
 			player.Play()
 			m.BgmPlayer.Close()
 		}
 		if util.XYinRect(cx, cy, CENTER-100-48, CHOICE_HEADER_Y+40-20, 48*2, 20*2) {
-			m.P1Choice = 0
+			m.P0Choice = 0
 		} else if util.XYinRect(cx, cy, CENTER-100-48, CHOICE_HEADER_Y+80-20, 48*2, 20*2) {
-			m.P1Choice = 1
+			m.P0Choice = 1
 		} else if util.XYinRect(cx, cy, CENTER+100-48, CHOICE_HEADER_Y+40-20, 48*2, 20*2) {
-			m.P2Choice = 0
+			m.P1Choice = 0
 		} else if util.XYinRect(cx, cy, CENTER+100-48, CHOICE_HEADER_Y+80-20, 48*2, 20*2) {
-			m.P2Choice = 1
+			m.P1Choice = 1
+		} else if util.XYinRect(cx, cy, CENTER-48, RULES_Y_CENTER-20, 48*2, 20*2) {
+			m.ShowingRules = true
 		}
 
 		/*
@@ -86,7 +103,7 @@ func (m *MenuScene) Draw(screen *ui.ScaledScreen) {
 
 	screen.DrawTextCenteredAt("Rummy Pyramid", 56.0, CENTER, TITLE_Y_CENTER, color.White)
 	screen.DrawTextCenteredAt("Play", 48.0, CENTER, PLAYING_Y_CENTER, color.White)
-	screen.DrawTextCenteredAt("Rules", 48.0, CENTER, CREDITS_Y_CENTER, color.White)
+	screen.DrawTextCenteredAt("Rules", 48.0, CENTER, RULES_Y_CENTER, color.White)
 
 	screen.DrawTextCenteredAt("Player 1", 32.0, CENTER-100, CHOICE_HEADER_Y, color.White)
 	screen.DrawTextCenteredAt("Human", 24.0, CENTER-100, CHOICE_HEADER_Y+40, color.White)
@@ -95,7 +112,7 @@ func (m *MenuScene) Draw(screen *ui.ScaledScreen) {
 	screen.DrawTextCenteredAt("Human", 24.0, CENTER+100, CHOICE_HEADER_Y+40, color.White)
 	screen.DrawTextCenteredAt("Computer", 24.0, CENTER+100, CHOICE_HEADER_Y+80, color.White)
 
-	if m.P1Choice == 0 {
+	if m.P0Choice == 0 {
 		screen.DrawCircle(CENTER-100-48, CHOICE_HEADER_Y+40, 4, color.White)
 		screen.DrawCircle(CENTER-100+48, CHOICE_HEADER_Y+40, 4, color.White)
 	} else {
@@ -103,7 +120,7 @@ func (m *MenuScene) Draw(screen *ui.ScaledScreen) {
 		screen.DrawCircle(CENTER-100+60, CHOICE_HEADER_Y+80, 4, color.White)
 	}
 
-	if m.P2Choice == 0 {
+	if m.P1Choice == 0 {
 		screen.DrawCircle(CENTER+100-48, CHOICE_HEADER_Y+40, 4, color.White)
 		screen.DrawCircle(CENTER+100+48, CHOICE_HEADER_Y+40, 4, color.White)
 	} else {
@@ -113,5 +130,7 @@ func (m *MenuScene) Draw(screen *ui.ScaledScreen) {
 
 	//scaledScreen.DrawTextCenteredAt("Credits", 32.0, CENTER, CREDITS_Y_CENTER, color.White)
 
-	//scaledScreen.DrawTextWithAlign(VERSION_STRING, 16.0, 1280-10, 720-10, color.White, etxt.Bottom, etxt.Right)
+	if m.ShowingRules {
+		m.Rules.Draw(screen)
+	}
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/prizelobby/ebitengine-template/core"
 	"github.com/prizelobby/ebitengine-template/res"
 	"github.com/prizelobby/ebitengine-template/scene"
 	"github.com/prizelobby/ebitengine-template/ui"
@@ -66,8 +65,6 @@ func (g *EbitenGame) LayoutF(outsideWidth, outsideHeight float64) (screenWidth, 
 
 func main() {
 	audioContext := audio.NewContext(SAMPLE_RATE)
-	game := core.NewGame()
-
 	// create a new text renderer and configure it
 	txtRenderer := etxt.NewStdRenderer()
 	glyphsCache := etxt.NewDefaultCache(10 * 1024 * 1024) // 10MB
@@ -89,7 +86,7 @@ func main() {
 	sm := scene.NewSceneManager()
 	menuScene := scene.NewMenuScene(audioContext)
 	creditsScene := scene.NewCreditsScene()
-	gameScene := scene.NewGameScene(game)
+	gameScene := scene.NewGameScene(0, 0)
 	sm.AddScene("menu", menuScene)
 	sm.AddScene("credits", creditsScene)
 	sm.AddScene("game", gameScene)
