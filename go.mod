@@ -1,4 +1,4 @@
-module github.com/prizelobby/ebitengine-template
+module github.com/prizelobby/pyramid-rummy
 
 go 1.22
 

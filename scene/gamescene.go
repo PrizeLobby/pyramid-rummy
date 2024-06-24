@@ -7,10 +7,10 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/prizelobby/ebitengine-template/core"
-	"github.com/prizelobby/ebitengine-template/res"
-	"github.com/prizelobby/ebitengine-template/ui"
-	"github.com/prizelobby/ebitengine-template/util"
+	"github.com/prizelobby/pyramid-rummy/core"
+	"github.com/prizelobby/pyramid-rummy/res"
+	"github.com/prizelobby/pyramid-rummy/ui"
+	"github.com/prizelobby/pyramid-rummy/util"
 	einput "github.com/quasilyte/ebitengine-input"
 )
 
@@ -125,7 +125,7 @@ var P1YLocs [10]float64 = [10]float64{
 }
 
 func (g *GameScene) Draw(screen *ui.ScaledScreen) {
-	screen.Screen.Fill(color.RGBA{0x5b, 0xa1, 0x2d, 0xff})
+	screen.Screen.Fill(color.RGBA{0x44, 0x5c, 0x47, 0xff})
 
 	screen.DrawTextCenteredAt(g.HelpText, 32, 640, HELPTEXT_Y, color.White)
 	if g.UIState != GAME_OVER {
@@ -312,6 +312,41 @@ func (g *GameScene) Update() {
 		} else if m.EventType == core.PLAY_CARD {
 			g.Game.PlayCard(m.Target)
 			complete := func() {
+				// this code is almost repeated, but its fine for now
+				var sprites [10]*ui.CardSprite
+				if g.Game.Turn%2 == 0 {
+					sprites = g.P1Spheres
+				} else {
+					sprites = g.P0Spheres
+				}
+				if m.Target == 6 {
+					sprites[1].DisplayType = ui.DISPLAY_TYPE_LEFT
+					sprites[2].DisplayType = ui.DISPLAY_TYPE_RIGHT
+				} else if m.Target == 7 {
+					if sprites[6] != nil {
+						sprites[1].DisplayType = ui.DISPLAY_TYPE_LEFT
+					}
+					sprites[3].DisplayType = ui.DISPLAY_TYPE_LEFT
+					if sprites[8] != nil {
+						sprites[4].DisplayType = ui.DISPLAY_TYPE_BOTTOM
+					} else {
+						sprites[4].DisplayType = ui.DISPLAY_TYPE_RIGHT
+					}
+				} else if m.Target == 8 {
+					if sprites[7] != nil {
+						sprites[2].DisplayType = ui.DISPLAY_TYPE_RIGHT
+					}
+					if sprites[7] != nil {
+						sprites[4].DisplayType = ui.DISPLAY_TYPE_BOTTOM
+					} else {
+						sprites[4].DisplayType = ui.DISPLAY_TYPE_LEFT
+					}
+					sprites[5].DisplayType = ui.DISPLAY_TYPE_RIGHT
+				} else if m.Target == 9 {
+					sprites[7].DisplayType = ui.DISPLAY_TYPE_LEFT
+					sprites[8].DisplayType = ui.DISPLAY_TYPE_RIGHT
+				}
+
 				nextCard := g.Game.TopDiscard()
 				if nextCard != nil {
 					g.DiscardSprite = ui.NewCardSprite(nextCard, DISCARD_X, DISCARD_Y)
@@ -453,7 +488,7 @@ func (g *GameScene) Update() {
 					}
 					g.DragSprite.X = x
 					g.DragSprite.Y = y - ui.TILE_HEIGHT
-					if g.PendIndex < 5 {
+					if g.PendIndex < 6 {
 						g.DragSprite.ShadowType = 0
 					} else {
 						g.DragSprite.ShadowType = 2

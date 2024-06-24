@@ -3,7 +3,7 @@ package scene
 import (
 	"errors"
 
-	"github.com/prizelobby/ebitengine-template/ui"
+	"github.com/prizelobby/pyramid-rummy/ui"
 )
 
 type Scene interface {

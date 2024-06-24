@@ -5,7 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/prizelobby/ebitengine-template/ui"
+	"github.com/prizelobby/pyramid-rummy/ui"
 )
 
 type CreditsScene struct {

@@ -7,7 +7,7 @@ parent_dir_name=$(basename $(dirname $1))
 cat >> $1 <<EOF
 package $parent_dir_name
 
-import "github.com/prizelobby/ebitengine-template/ui"
+import "github.com/prizelobby/pyramid-rummy/ui"
 
 type $2 struct {
 

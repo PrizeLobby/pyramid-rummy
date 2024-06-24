@@ -8,9 +8,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/prizelobby/ebitengine-template/res"
-	"github.com/prizelobby/ebitengine-template/ui"
-	"github.com/prizelobby/ebitengine-template/util"
+	"github.com/prizelobby/pyramid-rummy/res"
+	"github.com/prizelobby/pyramid-rummy/ui"
+	"github.com/prizelobby/pyramid-rummy/util"
 )
 
 const VERSION_STRING = "version 1.0.0"
@@ -99,7 +99,12 @@ func (m *MenuScene) Update() {
 }
 
 func (m *MenuScene) Draw(screen *ui.ScaledScreen) {
-	screen.Screen.Fill(color.RGBA{0x5b, 0xa1, 0x2d, 0xff})
+	screen.Screen.Fill(color.RGBA{0x44, 0x5c, 0x47, 0xff})
+
+	if m.ShowingRules {
+		m.Rules.Draw(screen)
+		return
+	}
 
 	screen.DrawTextCenteredAt("Rummy Pyramid", 56.0, CENTER, TITLE_Y_CENTER, color.White)
 	screen.DrawTextCenteredAt("Play", 48.0, CENTER, PLAYING_Y_CENTER, color.White)
@@ -129,8 +134,4 @@ func (m *MenuScene) Draw(screen *ui.ScaledScreen) {
 	}
 
 	//scaledScreen.DrawTextCenteredAt("Credits", 32.0, CENTER, CREDITS_Y_CENTER, color.White)
-
-	if m.ShowingRules {
-		m.Rules.Draw(screen)
-	}
 }

@@ -7,9 +7,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/prizelobby/ebitengine-template/res"
-	"github.com/prizelobby/ebitengine-template/scene"
-	"github.com/prizelobby/ebitengine-template/ui"
+	"github.com/prizelobby/pyramid-rummy/res"
+	"github.com/prizelobby/pyramid-rummy/scene"
+	"github.com/prizelobby/pyramid-rummy/ui"
 	einput "github.com/quasilyte/ebitengine-input"
 	"github.com/tinne26/etxt"
 )
