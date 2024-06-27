@@ -17,6 +17,7 @@ env GOOS=js GOARCH=wasm go build -o web/pyramidrummy.wasm github.com/prizelobby/
 
 ### Libraries
 [ebitengine](https://github.com/hajimehoshi/ebiten) - [License](https://github.com/hajimehoshi/ebiten/blob/main/LICENSE)
+
 [etxt](https://github.com/tinne26/etxt) - [License](https://github.com/tinne26/etxt/blob/main/LICENSE)
 
 ### Font
@@ -26,4 +27,5 @@ env GOOS=js GOARCH=wasm go build -o web/pyramidrummy.wasm github.com/prizelobby/
 [dice_03.wav - dermotte](https://freesound.org/people/dermotte/sounds/220741/) - [License](https://creativecommons.org/licenses/by/4.0/)
 
 [action_02.wav - dermotte](https://freesound.org/people/dermotte/sounds/263002/) - [License](https://creativecommons.org/licenses/by/4.0/)
+
 [Wood Friction Planks 11 - Sheyvan](https://freesound.org/people/Sheyvan/sounds/569705/) - [License](http://creativecommons.org/publicdomain/zero/1.0/)
