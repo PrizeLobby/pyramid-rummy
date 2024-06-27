@@ -66,10 +66,10 @@ func NewGameScene(p0, p1 int) *GameScene {
 
 	agents := [2]core.GameAgent{nil, nil}
 	if p0 == 1 {
-		agents[0] = core.NewAgent(0)
+		agents[0] = core.NewSampleAgent(0)
 	}
 	if p1 == 1 {
-		agents[1] = core.NewAgent(1)
+		agents[1] = core.NewSampleAgent(1)
 	}
 
 	return &GameScene{
@@ -294,22 +294,31 @@ func (g *GameScene) PyramidXYForTurn(i int) (*core.Pyramid, float64, float64) {
 }
 
 func (g *GameScene) Update() {
+	if g.UIState == WAITING_FOR_PLAYER_MOVE && g.Agents[g.Game.CurrentPlayer()] != nil {
+		g.UIState = WAITING_FOR_OPP_MOVE
+		g.moveChan <- g.Agents[g.Game.CurrentPlayer()].GenerateMove()
+		return
+	}
+
 	select {
 	case m := <-g.moveChan:
 		if m.EventType == core.DRAW_CARDS {
+			//fmt.Println("received event draw card")
 			c := g.Game.DrawCard()
 			g.Agents[g.Game.Turn%2].RevealCard(c)
+			g.Agents[g.Game.Turn%2].SetVisibleCard(c)
 			g.SecondSprite = g.DiscardSprite
 			g.DiscardSprite = ui.NewCardSprite(c, DECK_BUTTON_X, DECK_BUTTON_Y)
 			g.AnimationQueue = append(g.AnimationQueue, ui.NewBlockingAnim(30), ui.NewLinearPathAnimator(g.DiscardSprite, 35,
 				ui.Location{X: DECK_BUTTON_X, Y: DECK_BUTTON_Y},
 				ui.Location{X: DISCARD_X, Y: DISCARD_Y}, ui.EaseOutCubic, func() {
 					go func() {
-						g.moveChan <- g.Agents[g.Game.Turn%2].GenerateMove()
+						g.moveChan <- g.Agents[g.Game.CurrentPlayer()].GenerateMove()
 					}()
 				}))
 
 		} else if m.EventType == core.PLAY_CARD {
+			//fmt.Println("received event play card")
 			g.Game.PlayCard(m.Target)
 			complete := func() {
 				// this code is almost repeated, but its fine for now
@@ -351,6 +360,14 @@ func (g *GameScene) Update() {
 				if nextCard != nil {
 					g.DiscardSprite = ui.NewCardSprite(nextCard, DISCARD_X, DISCARD_Y)
 				}
+				if len(g.Game.Discards) > 1 {
+					g.SecondSprite = ui.NewCardSprite(g.Game.Discards[len(g.Game.Discards)-2], DISCARD_X, DISCARD_Y)
+					g.SecondSprite.X = DISCARD_X
+					g.SecondSprite.Y = DISCARD_Y
+				} else {
+					g.SecondSprite = nil
+				}
+
 				g.P0Score = g.Game.Pyramid1.Score()
 				g.P1Score = g.Game.Pyramid2.Score()
 				g.CurrentTurn = 1 - g.CurrentTurn
@@ -363,6 +380,7 @@ func (g *GameScene) Update() {
 							g.HelpText = "Click the deck to reveal a card."
 						}
 					} else {
+						g.Agents[g.Game.Turn%2].SetVisibleCard(g.Game.TopDiscard())
 						go func() { g.moveChan <- g.Agents[g.Game.Turn%2].GenerateMove() }()
 					}
 				} else {
@@ -450,6 +468,9 @@ func (g *GameScene) Update() {
 					g.HelpText = "You have 0 draws remaining this turn. Drag the open card to your pyramid."
 				} else {
 					c := g.Game.DrawCard()
+					if g.Agents[1-g.CurrentTurn] != nil {
+						g.Agents[1-g.CurrentTurn].RevealCard(c)
+					}
 					g.SecondSprite = g.DiscardSprite
 					g.DiscardSprite = ui.NewCardSprite(c, DECK_BUTTON_X, DECK_BUTTON_Y)
 					g.UIState = WAITING_FOR_PLAYER_ANIMIMATION
@@ -537,6 +558,7 @@ func (g *GameScene) Update() {
 						if agent := g.Agents[g.Game.Turn%2]; agent != nil {
 							g.UIState = WAITING_FOR_OPP_MOVE
 							g.HelpText = "The computer is thinking..."
+							agent.SetVisibleCard(g.Game.TopDiscard())
 							go func() { g.moveChan <- agent.GenerateMove() }()
 						}
 					} else {

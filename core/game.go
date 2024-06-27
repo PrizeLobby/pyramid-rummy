@@ -47,12 +47,14 @@ func (g *Game) TopDiscard() *Card {
 
 func (g *Game) DrawCard() *Card {
 	if g.DrawsLeft == 0 {
+		//fmt.Println("Game: Trying to draw with 0 draws left")
 		return nil
 	}
 	g.DrawsLeft -= 1
 	c := g.Deck[0]
 	g.Discards = append(g.Discards, c)
 	g.Deck = g.Deck[1:]
+	//fmt.Println("Game: Drew card " + c.String())
 	return c
 }
 
@@ -158,6 +160,8 @@ func (p *Pyramid) CanPlace(i int) bool {
 type Card struct {
 	Value int
 	Color int
+	Copy  int // this is so that its easier for the agent to keep track of
+	// theoretically the agent should keep track of how many copies it has seen so far
 }
 
 func (c Card) String() string {
@@ -165,22 +169,28 @@ func (c Card) String() string {
 	if c.Value < 10 {
 		v = strconv.Itoa(c.Value)
 	}
-	cs := "w"
+	cs := "p"
 	if c.Color == 1 {
-		cs = "r"
+		cs = "y"
 	}
 	return v + cs
 }
 
+func NewDeck() [40]*Card {
+	deck := [40]*Card{}
+	for i := range 10 {
+		deck[4*i] = &Card{Value: i + 1, Color: 0, Copy: 0}
+		deck[4*i+1] = &Card{Value: i + 1, Color: 0, Copy: 1}
+		deck[4*i+2] = &Card{Value: i + 1, Color: 1, Copy: 0}
+		deck[4*i+3] = &Card{Value: i + 1, Color: 1, Copy: 1}
+	}
+	return deck
+}
+
 func NewGame() *Game {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	deck := make([]*Card, 40)
-	for i := range 10 {
-		deck[4*i] = &Card{Value: i + 1, Color: 0}
-		deck[4*i+1] = &Card{Value: i + 1, Color: 0}
-		deck[4*i+2] = &Card{Value: i + 1, Color: 1}
-		deck[4*i+3] = &Card{Value: i + 1, Color: 1}
-	}
+	//r := rand.New(rand.NewSource(0))
+	deck := NewDeck()
 	r.Shuffle(len(deck), func(i, j int) { deck[i], deck[j] = deck[j], deck[i] })
 
 	discards := make([]*Card, 0, 40)
@@ -189,7 +199,7 @@ func NewGame() *Game {
 
 	return &Game{
 		Rand:      r,
-		Deck:      deck,
+		Deck:      deck[:],
 		Discards:  discards,
 		Pyramid1:  &Pyramid{Cards: [10]*Card{}},
 		Pyramid2:  &Pyramid{Cards: [10]*Card{}},
