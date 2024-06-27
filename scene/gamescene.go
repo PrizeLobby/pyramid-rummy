@@ -54,6 +54,9 @@ type GameScene struct {
 	OutlineTile    *ebiten.Image
 	Shadow         *ebiten.Image
 
+	ShowRules      bool
+	RulesComponent *ui.RulesComponent
+
 	Stroke *ui.Stroke
 
 	ActiveAnimation ui.Anim
@@ -86,6 +89,7 @@ func NewGameScene(p0, p1 int, audioContext *audio.Context) *GameScene {
 		OutlineTile:    res.GetImage("hexoutlinebroken"),
 		MapSmall:       res.GetImage("circlemapsmall"),
 		Shadow:         res.GetImage("shadow"),
+		RulesComponent: ui.NewRulesComponent(),
 		moveChan:       make(chan core.AgentEvent, 1),
 		PendIndex:      -1,
 		HelpText:       "Click the deck to reveal a card.",
@@ -94,6 +98,9 @@ func NewGameScene(p0, p1 int, audioContext *audio.Context) *GameScene {
 		SlideSound:     res.DecodeWavToBytes(audioContext, "569705__sheyvan__wood-friction-planks-11.wav"),
 	}
 }
+
+const RULES_X = 1150
+const RULES_Y = 20
 
 const HELPTEXT_Y = 180
 const TURN_TEXT_Y = 90
@@ -133,6 +140,13 @@ var P1YLocs [10]float64 = [10]float64{
 
 func (g *GameScene) Draw(screen *ui.ScaledScreen) {
 	screen.Screen.Fill(color.RGBA{0x44, 0x5c, 0x47, 0xff})
+
+	if g.ShowRules {
+		g.RulesComponent.Draw(screen)
+		return
+	}
+
+	screen.DrawText("Show Rules", 18, RULES_X, RULES_Y, color.White)
 
 	screen.DrawTextCenteredAt(g.HelpText, 32, 640, HELPTEXT_Y, color.White)
 	if g.UIState != GAME_OVER {
@@ -307,6 +321,13 @@ func (g *GameScene) Update() {
 		return
 	}
 
+	if g.ShowRules {
+		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+			g.ShowRules = false
+		}
+		return
+	}
+
 	select {
 	case m := <-g.moveChan:
 		if m.EventType == core.DRAW_CARDS {
@@ -431,9 +452,13 @@ func (g *GameScene) Update() {
 		}
 	}
 
+	cx, cy := ui.AdjustedCursorPosition()
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && util.XYinRect(cx, cy, RULES_X-10, RULES_Y-10, 120, 35) {
+		g.ShowRules = true
+	}
+
 	if g.UIState == GAME_OVER {
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-			cx, cy := ui.AdjustedCursorPosition()
 			if util.XYinRect(cx, cy, 640-120, 550-20, 240, 40) {
 				g.SceneManager.SwitchToScene("menu")
 			}
@@ -441,7 +466,6 @@ func (g *GameScene) Update() {
 	} else if g.UIState == WAITING_FOR_PLAYER_MOVE {
 		g.PrevPend = g.PendIndex
 
-		cx, cy := ui.AdjustedCursorPosition()
 		InHex := false
 		if g.DragSprite != nil {
 			for i := range 10 {
