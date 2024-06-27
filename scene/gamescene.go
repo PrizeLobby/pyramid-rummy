@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/prizelobby/pyramid-rummy/core"
 	"github.com/prizelobby/pyramid-rummy/res"
@@ -26,6 +27,8 @@ const (
 type GameScene struct {
 	BaseScene
 	UIState GameUIState
+
+	AudioContext *audio.Context
 
 	Game         *core.Game
 	SelectedCard *core.Card
@@ -59,9 +62,12 @@ type GameScene struct {
 	AnimationQueue  []ui.Anim
 
 	HelpText string
+
+	ActionSound []byte
+	SlideSound  []byte
 }
 
-func NewGameScene(p0, p1 int) *GameScene {
+func NewGameScene(p0, p1 int, audioContext *audio.Context) *GameScene {
 	game := core.NewGame()
 
 	agents := [2]core.GameAgent{nil, nil}
@@ -74,6 +80,7 @@ func NewGameScene(p0, p1 int) *GameScene {
 
 	return &GameScene{
 		Game:           game,
+		AudioContext:   audioContext,
 		HexMap:         res.GetImage("hexmap"),
 		HexMapInactive: res.GetImage("hexmapdeselected"),
 		BaseTile:       res.GetImage("basetile"),
@@ -85,6 +92,8 @@ func NewGameScene(p0, p1 int) *GameScene {
 		PendIndex:      -1,
 		HelpText:       "Click the deck to reveal a card.",
 		Agents:         agents,
+		ActionSound:    res.DecodeWavToBytes(audioContext, "263002__dermotte__action_02.wav"),
+		SlideSound:     res.DecodeWavToBytes(audioContext, "569705__sheyvan__wood-friction-planks-11.wav"),
 	}
 }
 
@@ -303,6 +312,9 @@ func (g *GameScene) Update() {
 	select {
 	case m := <-g.moveChan:
 		if m.EventType == core.DRAW_CARDS {
+			//player := g.AudioContext.NewPlayerFromBytes(g.ActionSound)
+			// NOTE: not sure why these always seem delayed
+			//player.Play()
 			//fmt.Println("received event draw card")
 			c := g.Game.DrawCard()
 			g.Agents[g.Game.Turn%2].RevealCard(c)
@@ -319,6 +331,8 @@ func (g *GameScene) Update() {
 
 		} else if m.EventType == core.PLAY_CARD {
 			//fmt.Println("received event play card")
+			//player := g.AudioContext.NewPlayerFromBytes(g.ActionSound)
+			//player.Play()
 			g.Game.PlayCard(m.Target)
 			complete := func() {
 				// this code is almost repeated, but its fine for now
@@ -467,6 +481,8 @@ func (g *GameScene) Update() {
 				if g.Game.DrawsLeft == 0 {
 					g.HelpText = "You have 0 draws remaining this turn. Drag the open card to your pyramid."
 				} else {
+					player := g.AudioContext.NewPlayerFromBytes(g.SlideSound)
+					player.Play()
 					c := g.Game.DrawCard()
 					if g.Agents[1-g.CurrentTurn] != nil {
 						g.Agents[1-g.CurrentTurn].RevealCard(c)
@@ -490,6 +506,8 @@ func (g *GameScene) Update() {
 				g.Stroke.Release()
 				pyramid, x, y := g.PyramidXYForTurn(g.PendIndex)
 				if g.PendIndex != -1 && pyramid.CanPlace(g.PendIndex) {
+					player := g.AudioContext.NewPlayerFromBytes(g.ActionSound)
+					player.Play()
 					g.Game.PlayCard(g.PendIndex)
 					if len(g.Game.Discards) > 0 {
 						g.DiscardSprite = ui.NewCardSprite(g.Game.TopDiscard(), DISCARD_X, DISCARD_Y)

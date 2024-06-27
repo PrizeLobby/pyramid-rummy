@@ -2,7 +2,6 @@ package scene
 
 import (
 	"image/color"
-	"log"
 	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -25,7 +24,6 @@ type MenuScene struct {
 	BaseScene
 	AudioContext *audio.Context
 	Sound        []byte
-	BgmPlayer    *audio.Player
 
 	P0Choice int
 	P1Choice int
@@ -36,18 +34,10 @@ type MenuScene struct {
 
 func NewMenuScene(audioContext *audio.Context) *MenuScene {
 	b := res.DecodeWavToBytes(audioContext, "dice_03.wav")
-	bgm := res.OggToStream(audioContext, "anttisinstrumentals+littleguitar.ogg")
-	loop := audio.NewInfiniteLoop(bgm, bgm.Length())
-	player, err := audioContext.NewPlayer(loop)
-	if err != nil {
-		log.Fatal(err)
-		return nil
-	}
 
 	return &MenuScene{
 		AudioContext: audioContext,
 		Sound:        b,
-		BgmPlayer:    player,
 		P1Choice:     1,
 
 		Rules: ui.NewRulesComponent(),
@@ -55,8 +45,6 @@ func NewMenuScene(audioContext *audio.Context) *MenuScene {
 }
 
 func (m *MenuScene) OnSwitch() {
-	m.BgmPlayer.SetPosition(0)
-	m.BgmPlayer.Play()
 }
 
 func (m *MenuScene) Update() {
@@ -71,12 +59,11 @@ func (m *MenuScene) Update() {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 
 		if math.Abs(cx-CENTER) < 100 && math.Abs(cy-PLAYING_Y_CENTER) < 50 {
-			gs := NewGameScene(m.P0Choice, m.P1Choice)
+			gs := NewGameScene(m.P0Choice, m.P1Choice, m.AudioContext)
 			m.SceneManager.AddScene("game", gs)
 			m.SceneManager.SwitchToScene("game")
 			player := m.AudioContext.NewPlayerFromBytes(m.Sound)
 			player.Play()
-			m.BgmPlayer.Close()
 		}
 		if util.XYinRect(cx, cy, CENTER-100-48, CHOICE_HEADER_Y+40-20, 48*2, 20*2) {
 			m.P0Choice = 0

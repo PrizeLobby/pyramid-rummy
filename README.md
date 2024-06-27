@@ -22,4 +22,6 @@ env GOOS=js GOARCH=wasm go build -o web/pyramidrummy.wasm github.com/prizelobby/
 
 ### Sound
 [dice_03.wav - dermotte](https://freesound.org/people/dermotte/sounds/220741/) - [License](https://creativecommons.org/licenses/by/4.0/)
-[Little Guitar - Antti Luode](https://archive.org/details/anttisinstrumentals1019/anttisinstrumentals%2Blittleguitar.mp3) - [License](https://creativecommons.org/licenses/by/4.0/)
+
+[action_02.wav - dermotte](https://freesound.org/people/dermotte/sounds/263002/) - [License](https://creativecommons.org/licenses/by/4.0/)
+[Wood Friction Planks 11 - Sheyvan](https://freesound.org/people/Sheyvan/sounds/569705/) - [License](http://creativecommons.org/publicdomain/zero/1.0/)

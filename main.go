@@ -150,10 +150,10 @@ func main() {
 	sm := scene.NewSceneManager()
 	menuScene := scene.NewMenuScene(audioContext)
 	creditsScene := scene.NewCreditsScene()
-	gameScene := scene.NewGameScene(0, 0)
+
 	sm.AddScene("menu", menuScene)
 	sm.AddScene("credits", creditsScene)
-	sm.AddScene("game", gameScene)
+
 	g.SceneManager = sm
 	sm.SwitchToScene("menu")
 
