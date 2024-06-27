@@ -12,7 +12,6 @@ import (
 	"github.com/prizelobby/pyramid-rummy/res"
 	"github.com/prizelobby/pyramid-rummy/ui"
 	"github.com/prizelobby/pyramid-rummy/util"
-	einput "github.com/quasilyte/ebitengine-input"
 )
 
 type GameUIState int
@@ -36,7 +35,6 @@ type GameScene struct {
 	Agents   [2]core.GameAgent
 	moveChan chan core.AgentEvent
 
-	Input       *einput.Handler
 	PendIndex   int
 	PrevPend    int
 	P0Score     int

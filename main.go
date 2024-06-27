@@ -14,7 +14,6 @@ import (
 	"github.com/prizelobby/pyramid-rummy/res"
 	"github.com/prizelobby/pyramid-rummy/scene"
 	"github.com/prizelobby/pyramid-rummy/ui"
-	einput "github.com/quasilyte/ebitengine-input"
 	"github.com/tinne26/etxt"
 )
 
@@ -35,7 +34,6 @@ type EbitenGame struct {
 	ScaledScreen *ui.ScaledScreen
 	gameState    GameState
 	SceneManager *scene.SceneManager
-	inputSystem  einput.System
 }
 
 func (g *EbitenGame) Update() error {
@@ -143,9 +141,6 @@ func main() {
 		ScaledScreen: scaledScreen,
 		gameState:    MENU,
 	}
-	g.inputSystem.Init(einput.SystemConfig{
-		DevicesEnabled: einput.AnyDevice,
-	})
 
 	sm := scene.NewSceneManager()
 	menuScene := scene.NewMenuScene(audioContext)

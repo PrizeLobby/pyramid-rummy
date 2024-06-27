@@ -7,6 +7,8 @@ Play cards to build the highest scoring pyramid. You can choose to play the reve
 Scoring:
 Scoring is based on the six edges of the pyramid. Each edge consists of three cards. If all three cards are the same color, the score for that edge is 0. Otherwise, the score is equal to the value of the card that is a different color than the other two. Your total score is the sum of the scores of the six edges.
 
+
+### Build for web
 ```
 env GOOS=js GOARCH=wasm go build -o web/pyramidrummy.wasm github.com/prizelobby/pyramid-rummy
 ```
